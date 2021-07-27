@@ -1,6 +1,7 @@
-import { Crawler } from "./lib/crawler";
+import { CrawlerCoordinator } from "./libs/crawlerCoordinator";
 
 (async () => {
-  const crawler = new Crawler("https://www.naver.com");
-  await crawler.trip();
+  const coordinator = new CrawlerCoordinator();
+  coordinator.reportUrl("https://naver.com");
+  await coordinator.start();
 })();
