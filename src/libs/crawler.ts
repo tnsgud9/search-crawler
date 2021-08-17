@@ -5,6 +5,7 @@ export class Crawler {
   private url: string;
   private content?: string;
   private coordinator: CrawlerCoordinator;
+  private host?: string;
 
   public constructor(url: string, coordinator: CrawlerCoordinator) {
     this.url = url;
@@ -13,9 +14,11 @@ export class Crawler {
 
   private async fetch(): Promise<string | null> {
     try {
-      const { data } = await axios.get(this.url, {
+      const { data, request } = await axios.get(this.url, {
         timeout: 3000,
       });
+      this.host = request.host;
+      console.log(this.host);
       return data;
     } catch (error) {
       if (error.isAxiosError) {
@@ -42,24 +45,37 @@ export class Crawler {
       console.error("Parse ERROR : Dose not have any context!");
       return;
     }
-    const anchors = this.content?.match(
-      /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1>/gi
-    );
-    if (!anchors) return;
-    anchors.forEach((anchor) => {
-      const matched = anchor.match(
-        /href=('|")(((http|ftp|https):\/\/)|(\/))*[\w-]+(\.[\w-]+)*([\w.,@?^=%&amp;:/~+#-]*[\w@?^=%&amp;/~+#-])?/i
+    try {
+      const anchors = this.content.match(
+        /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1>/gi
       );
-      if (!matched) return null;
-      const url = matched[0]
-        .replace("href=", "")
-        .replace(/"/g, "")
-        .replace(/'/g, "");
-      console.log(matched);
+      if (!anchors) return;
+      anchors.forEach((anchor) => {
+        const matched = anchor.match(
+          /href=('|")(((http|ftp|https):\/\/)|(\/))*[\w-]+(\.[\w-]+)*([\w.,@?^=%&amp;:/~+#-]*[\w@?^=%&amp;/~+#-])?/gi
+        );
+        if (!matched) return null;
+        let url = matched[0]
+          .replace("href=", "")
+          .replace(/"/g, "")
+          .replace(/'/g, "");
 
-      this.coordinator.reportUrl(url);
-    });
-    // TODO: parsing & extract url
-    // TODO: report url using callback
+        if (url.startsWith("/")) url = this.host + url;
+        this.coordinator.reportUrl(url);
+        if (url.indexOf("javascript:") == -1) {
+          if (url.indexOf("https://") == -1 || url.indexOf("http://") == -1) {
+            console.log("http://" + this.host + url);
+
+            this.coordinator.reportUrl("http://" + this.host + url);
+          } else {
+            console.log(this.host + url);
+
+            this.coordinator.reportUrl(this.host + url);
+          }
+        }
+      });
+    } catch (e) {
+      //console.log(this.content);
+    }
   }
 }
