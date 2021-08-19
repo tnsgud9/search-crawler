@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { CrawlerCoordinator } from "./crawlerCoordinator";
+import { parse } from "node-html-parser";
 
 export class Crawler {
   private url: string;
@@ -18,7 +19,6 @@ export class Crawler {
         timeout: 3000,
       });
       this.host = request.host;
-      console.log(this.host);
       return data;
     } catch (error) {
       if (error.isAxiosError) {
@@ -45,37 +45,31 @@ export class Crawler {
       console.error("Parse ERROR : Dose not have any context!");
       return;
     }
-    try {
-      const anchors = this.content.match(
-        /<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1>/gi
+
+    const html = parse(this.content);
+    if (!html) return;
+    const anchors = html.querySelectorAll("a");
+    if (!anchors) return;
+
+    anchors.forEach((anchor) => {
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+      const matched = href.match(
+        /^(((http|ftp|https):\/\/)|(\/))*[\w-]+(\.[\w-]+)*([\w.,@?^=%&amp;:/~+#-]*[\w@?^=%&amp;/~+#-])?/i
       );
-      if (!anchors) return;
-      anchors.forEach((anchor) => {
-        const matched = anchor.match(
-          /href=('|")(((http|ftp|https):\/\/)|(\/))*[\w-]+(\.[\w-]+)*([\w.,@?^=%&amp;:/~+#-]*[\w@?^=%&amp;/~+#-])?/gi
-        );
-        if (!matched) return null;
-        let url = matched[0]
-          .replace("href=", "")
-          .replace(/"/g, "")
-          .replace(/'/g, "");
+      if (!matched) return null;
 
-        if (url.startsWith("/")) url = this.host + url;
-        this.coordinator.reportUrl(url);
-        if (url.indexOf("javascript:") == -1) {
-          if (url.indexOf("https://") == -1 || url.indexOf("http://") == -1) {
-            console.log("http://" + this.host + url);
+      let url = matched[0];
 
-            this.coordinator.reportUrl("http://" + this.host + url);
-          } else {
-            console.log(this.host + url);
+      if (url.startsWith("")) {
+        url = this.host + url;
+      } else if (!href.startsWith("http")) {
+        url = this.host + "/" + url;
+      }
 
-            this.coordinator.reportUrl(this.host + url);
-          }
-        }
-      });
-    } catch (e) {
-      //console.log(this.content);
-    }
+      //this.coordinator.reportUrl(url);
+    });
+    const fixed = html.text.replace(/\s{2,}/g, " ");
+    console.log(fixed);
   }
 }
