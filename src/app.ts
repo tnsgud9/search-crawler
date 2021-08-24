@@ -9,7 +9,7 @@ const text = `<body>
 `;
 
 const html = parse(text);
-console.log(html.querySelector("a"));
+//console.log(html.querySelector("a"));
 
 /*const matched = text.match(/<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1>/i);
 console.log(matched);
