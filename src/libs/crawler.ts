@@ -3,6 +3,9 @@ import chardet from "chardet";
 import iconv from "iconv-lite";
 import { CrawlerCoordinator } from "./crawlerCoordinator";
 import { parse } from "node-html-parser";
+import { initialize } from "koalanlp/Util";
+import { KMR } from "koalanlp/API";
+import { Tagger } from "koalanlp/proc";
 
 export class Crawler {
   private url: string;
@@ -85,13 +88,31 @@ export class Crawler {
         } else if (!href.startsWith("http")) {
           url = this.host + "/" + url;
         }
-
         //this.coordinator.reportUrl(url);
       });
-      const fixed = html.text.replace(/\s{2,}/g, " ");
-      console.log(fixed);
+      html.querySelectorAll("script").forEach((script) => script.remove());
+
+      const text = html.text.replace(/\s{2, }/g, " ");
+      await this.parseKeywords(text);
     } catch (e) {
       console.log(e);
+    }
+  }
+
+  private async parseKeywords(text: string) {
+    await initialize({
+      packages: { KMR: "2.0.4", KKMA: "2.0.4" },
+      verbose: true,
+    });
+
+    const tagger = new Tagger(KMR);
+    const tagged = await tagger(text);
+    for (const sent of tagged) {
+      for (const word of sent._items) {
+        for (const morpheme of word._items) {
+          if (morpheme._tag === "NNG") console.log(morpheme.toString());
+        }
+      }
     }
   }
 }
