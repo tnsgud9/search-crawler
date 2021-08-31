@@ -9,36 +9,28 @@ import { Tagger } from "koalanlp/proc";
 
 export class Crawler {
   private url: string;
-  private content?: Buffer;
+  private content?: string;
   private coordinator: CrawlerCoordinator;
   private host?: string;
-  private encoding?: string;
+  //private encoding?: string;
 
   public constructor(url: string, coordinator: CrawlerCoordinator) {
     this.url = url;
     this.coordinator = coordinator;
   }
 
-  private async fetch(): Promise<Buffer | null> {
-    try {
-      const { data, request } = await axios.get(this.url, {
-        timeout: 3000,
-        responseType: "arraybuffer",
-      });
-      this.host = request.host;
-      const detectEndcoding = this.detectEncoding(data);
-      if (!detectEndcoding) {
-        return null;
-      }
-      this.encoding = detectEndcoding;
-      return data;
-    } catch (error: any) {
-      if (error.isAxiosError) {
-        const e: AxiosError = error;
-        console.error(e.response?.status);
-      }
-      return null;
+  private async fetch(): Promise<string | null> {
+    const browser = await this.coordinator.getBrowser().getInstance();
+    if (!browser) return null;
+    const page = await browser.newPage();
+    await page.goto(this.url);
+    const result = await page.content();
+
+    if (result) {
+      this.content = result;
+      return this.content;
     }
+    return null;
   }
 
   private detectEncoding(data: Buffer): string | null {
@@ -58,20 +50,13 @@ export class Crawler {
 
   private async parseContent(): Promise<void> {
     try {
-      if (!this.content || !this.encoding) {
+      if (!this.content) {
         console.error("Parse ERROR : Dose not have any context!");
         return;
       }
 
-      const encodedContent = iconv.decode(this.content, this.encoding);
-      const html = parse(encodedContent);
+      const html = parse(this.content).querySelector("body");
       const anchors = html.querySelectorAll("a");
-      const scripts = html.querySelectorAll("script");
-
-      scripts.forEach((script) => {
-        script.remove();
-      });
-      //console.log(scripts);
 
       anchors.forEach((anchor) => {
         const href = anchor.getAttribute("href");
@@ -88,6 +73,8 @@ export class Crawler {
         } else if (!href.startsWith("http")) {
           url = this.host + "/" + url;
         }
+
+        //주석풀면 크롤링 계속 진행됨
         //this.coordinator.reportUrl(url);
       });
       html.querySelectorAll("script").forEach((script) => script.remove());
@@ -100,17 +87,21 @@ export class Crawler {
   }
 
   private async parseKeywords(text: string) {
-    await initialize({
-      packages: { KMR: "2.0.4", KKMA: "2.0.4" },
-      verbose: true,
-    });
-
     const tagger = new Tagger(KMR);
     const tagged = await tagger(text);
     for (const sent of tagged) {
       for (const word of sent._items) {
         for (const morpheme of word._items) {
-          if (morpheme._tag === "NNG") console.log(morpheme.toString());
+          if (
+            morpheme._tag === "NNG" ||
+            morpheme._tag === "NNP" ||
+            morpheme._tag === "NNB" ||
+            morpheme._tag === "NP" ||
+            morpheme._tag === "NR" ||
+            morpheme._tag === "VV" ||
+            morpheme._tag === "SL"
+          )
+            console.log(morpheme.toString());
         }
       }
     }

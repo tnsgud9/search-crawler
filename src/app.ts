@@ -1,6 +1,6 @@
 import { parse } from "node-html-parser";
 import { CrawlerCoordinator } from "./libs/crawlerCoordinator";
-
+import { initialize } from "koalanlp/Util";
 const text = `<body>
 <a href="https://naver.com">hello</a>
 <div>sdfaasdf</div>
@@ -17,6 +17,10 @@ const multipleMatched = text.match(/<a\s+(?:[^>]*?\s+)?href=(["'])(.*?)\1>/g);
 console.log(multipleMatched);*/
 
 (async () => {
+  await initialize({
+    packages: { KMR: "2.0.4", KKMA: "2.0.4" },
+    verbose: true,
+  });
   const coodinator = new CrawlerCoordinator();
   coodinator.reportUrl("https://news.naver.com");
   await coodinator.start();
