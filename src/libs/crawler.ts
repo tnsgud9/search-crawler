@@ -32,7 +32,7 @@ export class Crawler {
       }
       this.encoding = detectEndcoding;
       return data;
-    } catch (error) {
+    } catch (error: any) {
       if (error.isAxiosError) {
         const e: AxiosError = error;
         console.error(e.response?.status);
@@ -83,7 +83,7 @@ export class Crawler {
 
         let url = matched[0];
 
-        if (url.startsWith("")) {
+        if (url.startsWith("/")) {
           url = this.host + url;
         } else if (!href.startsWith("http")) {
           url = this.host + "/" + url;
@@ -92,7 +92,7 @@ export class Crawler {
       });
       html.querySelectorAll("script").forEach((script) => script.remove());
 
-      const text = html.text.replace(/\s{2, }/g, " ");
+      const text = html.text.replace(/\s{2,}/g, " ");
       await this.parseKeywords(text);
     } catch (e) {
       console.log(e);
