@@ -101,9 +101,18 @@ export class Crawler {
             morpheme._tag === "NR" ||
             morpheme._tag === "VV" ||
             morpheme._tag === "SL"
-          )
-            await Keyword.create({ name: morpheme._surface });
-          console.log(morpheme.toString());
+          ) {
+            const exist = await Keyword.findOne({
+              where: {
+                name: morpheme._surface,
+              },
+            });
+            if (!exist) {
+              await Keyword.create({
+                name: morpheme._surface,
+              });
+            }
+          }
         }
       }
     }
