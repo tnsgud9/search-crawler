@@ -6,6 +6,7 @@ import { parse } from "node-html-parser";
 import { initialize } from "koalanlp/Util";
 import { KMR } from "koalanlp/API";
 import { Tagger } from "koalanlp/proc";
+import { Keyword } from "../models/Keyword";
 
 export class Crawler {
   private url: string;
@@ -101,7 +102,8 @@ export class Crawler {
             morpheme._tag === "VV" ||
             morpheme._tag === "SL"
           )
-            console.log(morpheme.toString());
+            await Keyword.create({ name: morpheme._surface });
+          console.log(morpheme.toString());
         }
       }
     }
