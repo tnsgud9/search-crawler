@@ -7,6 +7,8 @@ import { initialize } from "koalanlp/Util";
 import { KMR } from "koalanlp/API";
 import { Tagger } from "koalanlp/proc";
 import { Keyword } from "../models/Keyword";
+import { Link } from "../models/Link";
+import { KeywordLink } from "../models/KeywordLink";
 
 export class Crawler {
   private url: string;
@@ -90,6 +92,9 @@ export class Crawler {
   private async parseKeywords(text: string) {
     const tagger = new Tagger(KMR);
     const tagged = await tagger(text);
+    const newKeywords: Set<string> = new Set();
+    const existKeywords: Keyword[] = [];
+
     for (const sent of tagged) {
       for (const word of sent._items) {
         for (const morpheme of word._items) {
@@ -102,17 +107,49 @@ export class Crawler {
             morpheme._tag === "VV" ||
             morpheme._tag === "SL"
           ) {
+            const keyword = morpheme._surface.toLowerCase();
             const exist = await Keyword.findOne({
               where: {
-                name: morpheme._surface,
+                name: keyword,
               },
             });
+
             if (!exist) {
-              await Keyword.create({
-                name: morpheme._surface,
-              });
+              newKeywords.add(keyword);
+            } else {
+              existKeywords.push(exist);
             }
           }
+        }
+      }
+    }
+
+    let newLink;
+    if (newKeywords.size > 0) {
+      const keywords = Array.from(newKeywords).map((keyword) => {
+        return { name: keyword };
+      });
+
+      newLink = await Link.create(
+        {
+          url: this.url,
+          description: text.slice(0, 512),
+          keywords: keywords,
+        },
+        {
+          include: [Keyword],
+        }
+      );
+    }
+    if (newLink) {
+      const addedIds: Set<bigint> = new Set();
+      for (const keyword of existKeywords) {
+        if (!addedIds.has(keyword.id)) {
+          await KeywordLink.create({
+            keywordId: keyword.id,
+            linkId: newLink.id,
+          });
+          addedIds.add(keyword.id);
         }
       }
     }
