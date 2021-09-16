@@ -123,13 +123,14 @@ export class Crawler {
         }
       }
     }
+    const existLink = await Link.findOne({ where: { url: this.url } });
 
     let newLink;
-    if (newKeywords.size > 0) {
-      const keywords = Array.from(newKeywords).map((keyword) => {
-        return { name: keyword };
-      });
+    const keywords = Array.from(newKeywords).map((keyword) => {
+      return { name: keyword };
+    });
 
+    if (!existLink) {
       newLink = await Link.create(
         {
           url: this.url,
@@ -140,18 +141,27 @@ export class Crawler {
           include: [Keyword],
         }
       );
-    }
-    if (newLink) {
-      const addedIds: Set<bigint> = new Set();
-      for (const keyword of existKeywords) {
-        if (!addedIds.has(keyword.id)) {
-          await KeywordLink.create({
-            keywordId: keyword.id,
-            linkId: newLink.id,
-          });
-          addedIds.add(keyword.id);
-        }
+    } else {
+      for (const keyword of keywords) {
+        const newKeyword = await Keyword.create(keyword);
+        await KeywordLink.create({
+          keywordId: newKeyword.id,
+          linkId: existLink.id,
+        });
       }
+    }
+
+    const linkId = existLink ? existLink.id : newLink.id;
+    const addedIds: Set<bigint> = new Set();
+    for (const keyword of existKeywords) {
+      const existRelation = await KeywordLink.findOne({
+        where: { linkId: linkId, keywordId: keyword.id },
+      });
+
+      if (existRelation && !addedIds.has(keyword.id)) {
+        await KeywordLink.create({ keywordId: keyword.id, linkId: linkId });
+      }
+      addedIds.add(keyword.id);
     }
   }
 }
